@@ -4,29 +4,61 @@ import json
 from datetime import datetime
 from PIL import Image
 import uuid
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+from google.auth.transport.requests import Request
 
+
+# Set up page configuration
 st.set_page_config(page_title="E-Lapor Mas Rizxy", layout="centered")
 
-#Folder dan File
-DATA_FOLDER = "data"
-IMAGE_FOLDER = os.path.join(DATA_FOLDER, "images")
-JSON_FILE = os.path.join(DATA_FOLDER, "laporan.json")
-os.makedirs(DATA_FOLDER, exist_ok=True)
-os.makedirs(IMAGE_FOLDER, exist_ok=True)
+# Google API setup
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive.file']
 
-#Fungsi untuk baca data
-def load_data():
-    if os.path.exists(JSON_FILE) and os.path.getsize(JSON_FILE) > 0:
-        with open(JSON_FILE, "r") as file:
-            return json.load(file)
-    return []
+# Fungsi untuk autentikasi dan mengakses Google API
+def authenticate_google_api():
+    creds = None
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open('token.json', 'w') as token:
+            token.write(creds.to_json())
+    return creds
 
-#fungsi untuk simpan data
-def save_data(data):
-    with open(JSON_FILE, "w") as file:
-        json.dump(data, file, indent=2)
-        
-#Fungsi klasifikasi otomatis
+# Fungsi untuk simpan data ke Google Sheets
+def save_to_google_sheets(data):
+    creds = authenticate_google_api()
+    service = build('sheets', 'v4', credentials=creds)
+
+    spreadsheet_id = 'YOUR_SPREADSHEET_ID'  # Ganti dengan ID Spreadsheet Anda
+    range_ = 'Sheet1!A1:F1'  # Sesuaikan dengan range di Google Sheets Anda
+
+    values = [[data['nama'], data['lokasi'], data['laporan'], data['kategori'], data['waktu'], data['gambar']]]
+    body = {'values': values}
+
+    service.spreadsheets().values().append(spreadsheetId=spreadsheet_id, range=range_,
+                                            valueInputOption='RAW', body=body).execute()
+
+# Fungsi untuk upload gambar ke Google Drive
+def upload_to_google_drive(image_path):
+    creds = authenticate_google_api()
+    service = build('drive', 'v3', credentials=creds)
+
+    file_metadata = {'name': os.path.basename(image_path), 'mimeType': 'image/jpeg'}
+    media = MediaFileUpload(image_path, mimetype='image/jpeg')
+
+    file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+    return file.get('id')  # Mendapatkan file ID setelah diupload
+
+# Fungsi klasifikasi otomatis
 def klasifikasi_laporan(teks):
     teks = teks.lower()
     if any(k in teks for k in ["jalan", "jembatan", "lampu", "infrastruktur"]):
@@ -44,7 +76,7 @@ def klasifikasi_laporan(teks):
     else:
         return "Lainnya"
 
-#sidebar navigasi
+# Sidebar navigasi
 page = st.sidebar.selectbox("Pilih halaman", ["Kirim Laporan", "Laporan Masuk"])
 
 if page == "Kirim Laporan":
@@ -60,14 +92,17 @@ if page == "Kirim Laporan":
         if nama and lokasi and laporan:
             image_filename = None
 
-            #simpan gambar jika ada
+            # Simpan gambar jika ada
             if gambar:
                 image_id = str(uuid.uuid4())
-                ext = os.path.split('.')[-1]
+                ext = gambar.name.split('.')[-1]
                 image_filename = f"{image_id}.{ext}"
-                image_path = os.path.join(IMAGE_FOLDER, image_filename)
+                image_path = os.path.join("data", "images", image_filename)
                 with open(image_path, "wb") as f:
                     f.write(gambar.getbuffer())
+
+                # Upload gambar ke Google Drive
+                drive_file_id = upload_to_google_drive(image_path)
 
             kategori = klasifikasi_laporan(laporan)
 
@@ -77,34 +112,40 @@ if page == "Kirim Laporan":
                 "laporan": laporan,
                 "kategori": kategori,
                 "waktu": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "gambar": image_filename
+                "gambar": drive_file_id if gambar else None
             }
 
-            data = load_data()
-            data.append(new_entry)
-            save_data(data)
-            st.success("Laporan berhasil dikirim! ✅\nKategori: **{kategori}**")
+            # Simpan data ke Google Sheets
+            save_to_google_sheets(new_entry)
+
+            st.success(f"Laporan berhasil dikirim! ✅\nKategori: **{kategori}**")
         else:
             st.warning("Nama, lokasi dan isi laporan harus diisi.")
 
-elif page =="Laporan Masuk":
-    st.title("📋Laporan Masuk")
+elif page == "Laporan Masuk":
+    st.title("📋 Laporan Masuk")
 
-    data = load_data()
+    creds = authenticate_google_api()
+    service = build('sheets', 'v4', credentials=creds)
+
+    spreadsheet_id = 'YOUR_SPREADSHEET_ID'  # Ganti dengan ID Spreadsheet Anda
+    range_ = 'Sheet1!A2:F'  # Sesuaikan dengan range di Google Sheets Anda
+    result = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=range_).execute()
+    data = result.get('values', [])
+
     if data:
-        for i, laporan in enumerate(data[::-1], 1): #terbaru dulu
+        for i, laporan in enumerate(data[::-1], 1):  # terbaru dulu
             st.markdown(f"### 📋 Laporan #{i}")
-            st.write(f"**Nama:** {laporan.get('nama', 'Tidak diketahui')}")
-            st.write(f"**Lokasi:** {laporan.get('lokasi', 'Tidak diketahui')}")
-            st.write(f"**Laporan:** {laporan.get('laporan', '')}")
-            st.write(f"**Kategori:** {laporan.get('kategori', 'Tidak diklasifikasikan')}")
-            st.write(f"🕒 **Waktu:** {laporan.get('waktu', '')}")
+            st.write(f"**Nama:** {laporan[0]}")
+            st.write(f"**Lokasi:** {laporan[1]}")
+            st.write(f"**Laporan:** {laporan[2]}")
+            st.write(f"**Kategori:** {laporan[3]}")
+            st.write(f"🕒 **Waktu:** {laporan[4]}")
 
-            #tampilkan gambar jika ada
-            if laporan.get("gambar"):
-                image_path = os.path.join(IMAGE_FOLDER, laporan["gambar"])
-                if os.path.exists(image_path):
-                    st.image(image_path, width=400, caption="Bukti Foto")
+            # Tampilkan gambar jika ada
+            if len(laporan) > 5 and laporan[5]:
+                image_url = f"https://drive.google.com/uc?id={laporan[5]}"
+                st.image(image_url, width=400, caption="Bukti Foto")
 
             st.markdown("---")
     else:
