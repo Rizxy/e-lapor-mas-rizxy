@@ -25,6 +25,24 @@ def load_data():
 def save_data(data):
     with open(JSON_FILE, "w") as file:
         json.dump(data, file, indent=2)
+        
+#Fungsi klasifikasi otomatis
+def klasifikasi_laporan(teks):
+    teks = teks.lower()
+    if any(k in teks for k in ["jalan", "jembatan", "lampu", "infrastruktur"]):
+        return "Infrastruktur"
+    elif any(k in teks for k in ["sakit", "puskesmas", "rumah sakit", "obat", "kesehatan"]):
+        return "Kesehatan"
+    elif any(k in teks for k in ["sekolah", "pendidikan", "guru", "murid", "siswa"]):
+        return "Pendidikan"
+    elif any(k in teks for k in ["bencana", "banjir", "sampah", "lingkungan"]):
+        return "Lingkungan"
+    elif any(k in teks for k in ["maling", "keamanan", "kriminal", "begal", "polisi"]):
+        return "Keamanan"
+    elif any(k in teks for k in ["ktp", "kk", "bansos", "dukcapil", "sosial", "akta"]):
+        return "Sosial/kependudukan"
+    else:
+        return "Lainnya"
 
 #sidebar navigasi
 page = st.sidebar.selectbox("Pilih halaman", ["Kirim Laporan", "Laporan Masuk"])
@@ -36,7 +54,7 @@ if page == "Kirim Laporan":
     nama = st.text_input("Nama")
     lokasi = st.text_input("Lokasi Kejadian")
     laporan = st.text_area("Isi laporan")
-    gambar = st.file_uploader("Upload Gambar Bukti (Opsional)", type=["jpg, jpeg, png"])
+    gambar = st.file_uploader("Upload Gambar Bukti (Opsional)", type=["jpg", "jpeg", "png"])
 
     if st.button("Kirim Laporan"):
         if nama and lokasi and laporan:
@@ -51,10 +69,13 @@ if page == "Kirim Laporan":
                 with open(image_path, "wb") as f:
                     f.write(gambar.getbuffer())
 
+            kategori = klasifikasi_laporan(laporan)
+
             new_entry = {
                 "nama": nama,
                 "lokasi": lokasi,
                 "laporan": laporan,
+                "kategori": kategori,
                 "waktu": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "gambar": image_filename
             }
@@ -62,7 +83,7 @@ if page == "Kirim Laporan":
             data = load_data()
             data.append(new_entry)
             save_data(data)
-            st.success("Laporan berhasil dikirim!")
+            st.success("Laporan berhasil dikirim! ✅\nKategori: **{kategori}**")
         else:
             st.warning("Nama, lokasi dan isi laporan harus diisi.")
 
@@ -73,10 +94,11 @@ elif page =="Laporan Masuk":
     if data:
         for i, laporan in enumerate(data[::-1], 1): #terbaru dulu
             st.markdown(f"### 📋 Laporan #{i}")
-            st.write(f"**Nama:** {laporan['nama']}")
-            st.write(f"**Lokasi:** {laporan['lokasi']}")
-            st.write(f"**Laporan:** {laporan['laporan']}")
-            st.write(f"🕒 **Waktu:** {laporan['waktu']}")
+            st.write(f"**Nama:** {laporan.get('nama', 'Tidak diketahui')}")
+            st.write(f"**Lokasi:** {laporan.get('lokasi', 'Tidak diketahui')}")
+            st.write(f"**Laporan:** {laporan.get('laporan', '')}")
+            st.write(f"**Kategori:** {laporan.get('kategori', 'Tidak diklasifikasikan')}")
+            st.write(f"🕒 **Waktu:** {laporan.get('waktu', '')}")
 
             #tampilkan gambar jika ada
             if laporan.get("gambar"):
