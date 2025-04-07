@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 import json
 from datetime import datetime
 from PIL import Image
@@ -32,7 +33,10 @@ def upload_gambar_ke_drive(gambar):
     gauth.credentials = creds
     drive = GoogleDrive(gauth)
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp_file:
+
+    ext = os.path.splitext(gambar.name)[-1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp_file:
+
         tmp_file.write(gambar.getvalue())
         tmp_file.flush()
         file_drive = drive.CreateFile({
