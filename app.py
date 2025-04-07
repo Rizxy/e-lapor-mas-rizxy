@@ -53,7 +53,7 @@ def upload_gambar_ke_drive(gambar):
             'role': 'reader'
         })
 
-        return f"https://drive.google.com/uc?id={file_drive['id']}"
+        return f"https://drive.google.com/uc?export=view&id={file_drive['id']}"
 
 
 #----------------- Simpan ke Google Sheets -------------------
