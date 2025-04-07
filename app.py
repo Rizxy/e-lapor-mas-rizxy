@@ -141,8 +141,11 @@ elif page == "Laporan Masuk":
             st.write(f"🧑 Nama: {laporan['nama']}")
             st.write(f"🕒 Waktu: {laporan['waktu']}")
             st.write(f"📝 Laporan: {laporan['isi']}")
-            if laporan.get("gambar_url"):
-                st.image(laporan["gambar_url"], width=300)
-            st.markdown("---")
+            url = laporan.get("gambar_url", "").strip()
+            if url.startswith("http"):
+                st.image(url, width=300)
+            else:
+                 st.write("📎 Bukti belum tersedia atau tidak valid.")
+
     else:
         st.info("Belum ada laporan masuk.")
