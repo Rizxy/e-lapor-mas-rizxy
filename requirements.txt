@@ -1,2 +1,5 @@
 streamlit
 pillow
+gspread
+google-auth
+PyDrive
