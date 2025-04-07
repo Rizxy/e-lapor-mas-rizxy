@@ -3,7 +3,9 @@ import json
 from datetime import datetime
 from PIL import Image
 import uuid
+import gspread
 from google.oauth2.credentials import Credentials
+from oauth2client.service_account import ServiceAccountCredentials
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 import tempfile
