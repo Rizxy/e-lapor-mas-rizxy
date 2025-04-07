@@ -133,19 +133,23 @@ if page == "Kirim Laporan":
 elif page == "Laporan Masuk":
     st.header("📥 Laporan Masuk")
 
-    data = baca_laporan_dari_sheets()
+    sheet_id = st.secrets["sheet_id"]
+    sheet = gsheet_client.open_by_key(sheet_id).sheet1
+    records = sheet.get_all_values()
 
-    if data:
-        for laporan in reversed(data):
-            st.subheader(f"{laporan['kategori']} - {laporan['lokasi']}")
-            st.write(f"🧑 Nama: {laporan['nama']}")
-            st.write(f"🕒 Waktu: {laporan['waktu']}")
-            st.write(f"📝 Laporan: {laporan['isi']}")
-            url = laporan.get("gambar_url", "").strip()
+    if records and len(records) > 1:  # baris pertama biasanya header/manual
+        for laporan in reversed(records[1:]):
+            st.subheader(f"{laporan[3]} - {laporan[1]}")
+            st.write(f"🧑 Nama: {laporan[0]}")
+            st.write(f"🕒 Waktu: {laporan[4]}")
+            st.write(f"📝 Laporan: {laporan[2]}")
+
+            url = laporan[5].strip()
             if url.startswith("http"):
                 st.image(url, width=300)
             else:
-                 st.write("📎 Bukti belum tersedia atau tidak valid.")
+                st.write("📎 Bukti belum tersedia atau tidak valid.")
 
+            st.markdown("---")
     else:
         st.info("Belum ada laporan masuk.")
