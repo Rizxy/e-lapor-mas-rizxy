@@ -41,7 +41,16 @@ def upload_gambar_ke_drive(gambar):
         })
         file_drive.SetContentFile(tmp_file.name)
         file_drive.Upload()
+        
+        # Beri permission publik agar bisa ditampilkan di Streamlit
+        file_drive.InsertPermission({
+            'type': 'anyone',
+            'value': 'anyone',
+            'role': 'reader'
+        })
+
         return f"https://drive.google.com/uc?id={file_drive['id']}"
+
 
 #----------------- Simpan ke Google Sheets -------------------
 def simpan_laporan_ke_sheets(data_laporan):
