@@ -31,8 +31,8 @@ def upload_gambar_ke_drive(gambar):
         tmp_file.write(gambar.getvalue())
         tmp_file.flush()
         file_drive = drive.CreateFile({
-            "title" = gambar.name,
-            "parents" = [{"id": st.secrets["drive_folder_id"]}]
+            "title" : gambar.name,
+            "parents" : [{"id": st.secrets["drive_folder_id"]}]
         })
         file_drive.SetContentFile(tmp_file.name)
         file_drive.Upload()
