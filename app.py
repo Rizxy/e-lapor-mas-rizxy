@@ -76,6 +76,25 @@ def ambil_data_laporan():
         })
     return data_laporan
 
+def baca_laporan_dari_sheets():
+    sheet_id = st.secrets["sheet_id"]
+    sheet = gsheet_client.open_by_key(sheet_id).sheet1
+    records = sheet.get_all_records()
+
+    laporan_list = []
+    for row in records:
+        laporan = {
+            "nama": row.get("nama") or row.get("Nama"),
+            "lokasi": row.get("lokasi") or row.get("Lokasi"),
+            "isi": row.get("isi_laporan") or row.get("Isi Laporan"),
+            "kategori": row.get("kategori") or row.get("Kategori"),
+            "waktu": row.get("waktu") or row.get("Waktu"),
+            "gambar_url": row.get("url_gambar") or row.get("Url Gambar") or row.get("url")  # tergantung header di sheet
+        }
+        laporan_list.append(laporan)
+    return laporan_list
+
+
 
 # ---------- UI ----------
 st.title("📢 E-Lapor SuaraRakyat")
@@ -113,7 +132,8 @@ if page == "Kirim Laporan":
 
 elif page == "Laporan Masuk":
     st.header("📥 Laporan Masuk")
-    data = ambil_data_laporan()
+
+    data = baca_laporan_dari_sheets()
 
     if data:
         for laporan in reversed(data):
