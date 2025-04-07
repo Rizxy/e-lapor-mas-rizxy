@@ -149,8 +149,8 @@ elif page == "Laporan Masuk":
             st.write(f"📝 Laporan: {laporan[2]}")
 
             url = laporan[5].strip()
-            if url.startswith("http"):
-                st.image(url, width=300)
+            if laporan[5].startswith("http"):
+                st.image(laporan[5], width=300)
             else:
                 st.write("📎 Bukti belum tersedia atau tidak valid.")
 
