@@ -16,7 +16,10 @@ def auth_google_services():
     service_account_info = json.loads(st.secrets["gcp_service_account"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(
         service_account_info,
-        scopes=["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
+        scopes=[
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
     )
     client = gspread.authorize(creds)
     return creds, client
@@ -33,13 +36,12 @@ def upload_gambar_ke_drive(gambar):
         tmp_file.write(gambar.getvalue())
         tmp_file.flush()
         file_drive = drive.CreateFile({
-            "title" : gambar.name,
-            "parents" : [{"id": st.secrets["drive_folder_id"]}]
+            "title": gambar.name,
+            "parents": [{"id": st.secrets["drive_folder_id"]}]
         })
         file_drive.SetContentFile(tmp_file.name)
         file_drive.Upload()
         return f"https://drive.google.com/uc?id={file_drive['id']}"
-
 
 #----------------- Simpan ke Google Sheets -------------------
 def simpan_laporan_ke_sheets(data_laporan):
@@ -47,13 +49,32 @@ def simpan_laporan_ke_sheets(data_laporan):
     sheet = gsheet_client.open_by_key(sheet_id).sheet1
     sheet.append_row(data_laporan)
 
-    # ---------- UI ----------
-st.title("📢 E-Lapor Mas Wapres")
+# ---------------- Ambil data dari Google Sheets --------------
+def ambil_data_laporan():
+    sheet_id = st.secrets["sheet_id"]
+    sheet = gsheet_client.open_by_key(sheet_id).sheet1
+    records = sheet.get_all_values()
 
-page = st.sidebar.selectbox("Navigasi", ["Kirim Laporan"])
+    data_laporan = []
+    for row in records[1:]:  # Skip header
+        data_laporan.append({
+            "nama": row[0],
+            "lokasi": row[1],
+            "isi": row[2],
+            "kategori": row[3],
+            "waktu": row[4],
+            "gambar_url": row[5] if len(row) > 5 else ""
+        })
+    return data_laporan
+
+
+# ---------- UI ----------
+st.title("📢 E-Lapor SuaraRakyat")
+
+page = st.sidebar.selectbox("Navigasi", ["Kirim Laporan", "Laporan Masuk"])
 
 if page == "Kirim Laporan":
-    st.subheader("Formulir Laporan")
+    st.subheader("Kirim laporan dari daerahmu!")
     
     nama = st.text_input("Nama")
     lokasi = st.text_input("Lokasi")
@@ -68,8 +89,7 @@ if page == "Kirim Laporan":
             if gambar:
                 url_gambar = upload_gambar_ke_drive(gambar)
 
-            # Dummy kategori (nanti bisa diganti AI)
-            kategori = "Lainnya"
+            kategori = "Lainnya"  # dummy kategori
 
             data_laporan = [
                 nama,
@@ -81,3 +101,19 @@ if page == "Kirim Laporan":
             ]
             simpan_laporan_ke_sheets(data_laporan)
             st.success("✅ Laporan berhasil dikirim!")
+
+elif page == "Laporan Masuk":
+    st.header("📥 Laporan Masuk")
+    data = ambil_data_laporan()
+
+    if data:
+        for laporan in reversed(data):
+            st.subheader(f"{laporan['kategori']} - {laporan['lokasi']}")
+            st.write(f"🧑 Nama: {laporan['nama']}")
+            st.write(f"🕒 Waktu: {laporan['waktu']}")
+            st.write(f"📝 Laporan: {laporan['isi']}")
+            if laporan.get("gambar_url"):
+                st.image(laporan["gambar_url"], width=300)
+            st.markdown("---")
+    else:
+        st.info("Belum ada laporan masuk.")
