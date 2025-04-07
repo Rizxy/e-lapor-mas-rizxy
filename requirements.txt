@@ -3,3 +3,4 @@ pillow
 gspread
 google-auth
 PyDrive
+oauth2client
